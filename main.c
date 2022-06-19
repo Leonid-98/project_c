@@ -1,5 +1,6 @@
 #include "avr/io.h"
 #include "avr/interrupt.h"
+#include "stdlib.h"
 
 #define BUFFER_SIZE 128
 #define DIFF_BETWEEN_PULSES 1
@@ -219,6 +220,7 @@ int main(void)
 	DDRA = 0xFF;
 
 	sei();
+	uint64_t rand_seed = 0;
 	while (1)
 	{
 		if (PINE & 1 << PE5)
@@ -231,11 +233,18 @@ int main(void)
 			read_data_flag = 1;
 		}
 
-		PORTA = ir_data;
+		//PORTA = ir_data;
+		
 		
 		// Game logic
 		number_left_7SEG = 7;
 		number_right_7SEG = 9;
+		
+		srand(rand_seed);
+		uint8_t x = rand();
+		PORTA = x;
+		rand_seed++;
+		UARTsendByte(x);
 		
 	}
 }
