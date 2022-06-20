@@ -6,6 +6,7 @@
 #define DIFF_BETWEEN_PULSES 1
 #define BYTES_IN_MSG 5
 
+// IR receiver variables
 uint8_t read_data_flag = 0;
 uint16_t read_data_counter = 0;
 uint8_t buffer1[BUFFER_SIZE];
@@ -15,7 +16,8 @@ uint8_t buffer4[BUFFER_SIZE];
 uint8_t ir_data;
 char serial_debug_data;
 
-uint8_t counter_flip_7SEG = 0;
+// 7SEG variables
+uint8_t counter_flip_7SEG = 0; // counts, which 7SEG left to show. Left or right.
 uint8_t number_right_7SEG = 0;
 uint8_t number_left_7SEG = 0;
 uint8_t numbers_7SEG[10] = {
@@ -31,22 +33,43 @@ uint8_t numbers_7SEG[10] = {
 	0b11110110
 	};
 
-void UARTsendByte(char data)
-{
+// UART Feedback messages
+uint8_t UART_START_GAME[] = "Memory game: In order to start, send <S>  \0";
+uint8_t UART_LOSE_GAME[] = "You lost. Play again?  \0";
+uint8_t UART_WIN_GAME[] = "You won! +10 points. Total score:  \0";
+uint8_t UART_SELECT_DIFFICULTY_GAME[] = "Select difficutly from 1 to 5, send <num>  \0"; 
+
+// Game logic variables
+uint64_t rand_seed = 0;
+uint8_t random_values[10];
+uint8_t game_start_flag = 0;
+
+void UARTsendByte(char data) {
 	while (!(UCSR1A & 1 << UDRE1));
 	UDR1 = data;
 }
 
-void UARTsendMSG(uint64_t decoded_data, uint8_t bytes_in_msg)
-{
-	for (uint8_t i = 0; i < bytes_in_msg; i++)
-	{
+void UARTsendString(char *str) {
+	char* ptr = str;
+	while (*ptr != 0){
+		UARTsendByte(*ptr);
+		ptr++;
+	}
+}
+
+void UARTsendMSG(uint64_t decoded_data, uint8_t bytes_in_msg) {
+	/*
+	Function that sends received IR data via UART. Unpacks 64bit data into ${bytes_in_msg} separate bytes. 5 in this project.
+	*/
+	for (uint8_t i = 0; i < bytes_in_msg; i++) {
 		UARTsendByte(decoded_data >> (8 * i) & 0xFF);
 	}
 }
 
-void shiftByteOut(uint8_t number)
-{
+void shiftByteOut(uint8_t number) {
+	/*  
+	Function for TIMER0_OVF_vect, that helps show numbers on 7SEG led. 
+	*/
 	for (uint8_t i = 8; i > 0; i--)
 	{
 		if (number & 1)
@@ -67,7 +90,9 @@ void shiftByteOut(uint8_t number)
 
 ISR(TIMER0_OVF_vect)
 {
-	// 7SEG fast timer. Show numbers_7SEG
+	/*
+	7SEG fast timer. Shows numbers on 7SEG. Also, here I update random number seed.
+	*/
 	counter_flip_7SEG ^= 0xFF;
 	if (counter_flip_7SEG)
 	{
@@ -79,11 +104,17 @@ ISR(TIMER0_OVF_vect)
 		PORTD = 0;
 		shiftByteOut(numbers_7SEG[number_left_7SEG]);
 	}
+	
+	rand_seed++;
+	srand(rand_seed);
 }
 
 ISR(TIMER1_COMPA_vect)
 {
-	// 7SEG slow timer. Change numbers_7SEG.
+	/*
+	7SEG slow timer. Counts numbers what to show. 
+	TODO use this timer for game logic to show numbers.
+	*/
 	number_right_7SEG++;
 	if (number_right_7SEG == 10)
 	{
@@ -96,7 +127,9 @@ ISR(TIMER1_COMPA_vect)
 
 ISR(TIMER3_COMPA_vect)
 {
-	// Start reading impulses as serial data
+	/*
+	IR receiver timer. Decodes IR signal using NEC protocol at frequency ~200 kHz
+	*/
 	if (read_data_flag == 1)
 	{
 		// Fill all buffers with serial data
@@ -237,10 +270,9 @@ int main(void)
 		
 		
 		// Game logic
-		number_left_7SEG = 7;
-		number_right_7SEG = 9;
+		number_left_7SEG = 0;
+		number_right_7SEG = 0;
 		
-		srand(rand_seed);
 		uint8_t x = rand();
 		PORTA = x;
 		rand_seed++;
