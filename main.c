@@ -4,7 +4,25 @@
 
 #include "stdlib.h"
 
+<<<<<<< HEAD
 
+=======
+#define BUFFER_SIZE 128
+#define DIFF_BETWEEN_PULSES 3
+#define BYTES_IN_MSG 5
+#define MAX_GAME_NUMBER 99
+
+// IR receiver variables
+uint8_t read_data_flag = 0;
+uint16_t read_data_counter = 0;
+uint8_t buffer1[BUFFER_SIZE];
+uint8_t buffer2[BUFFER_SIZE];
+uint8_t buffer3[BUFFER_SIZE];
+uint8_t buffer4[BUFFER_SIZE];
+uint8_t ir_data;
+char serial_debug_data;
+
+>>>>>>> 24d07badc544283b71b8f363f23f3c651262816c
 // 7SEG variables
 uint8_t counter_flip_7SEG = 0; // counts, which 7SEG left to show. Left or right.
 uint8_t number_right_7SEG = 0;
