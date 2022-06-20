@@ -5,6 +5,7 @@
 #define BUFFER_SIZE 128
 #define DIFF_BETWEEN_PULSES 3
 #define BYTES_IN_MSG 5
+#define MAX_GAME_NUMBER 99
 
 // IR receiver variables
 uint8_t read_data_flag = 0;
@@ -34,26 +35,36 @@ uint8_t numbers_7SEG[10] = {
 };
 
 // UART Feedback messages
-uint8_t UART_START_GAME[] = "Memory game: In order to start, send <S>  \0";
-uint8_t UART_LOSE_GAME[] = "You lost. Play again?  \0";
-uint8_t UART_WIN_GAME[] = "You won! +10 points. Total score:  \0";
-uint8_t UART_SELECT_DIFFICULTY_GAME[] = "Select difficutly from 1 to 5, send <num>  \0";
-uint8_t GAME_START_CHAR = 'S';
+char UART_START_GAME[] = "Memory game: In order to start, send <S>  \0";
+char UART_LOSE_GAME[] = "You lost. Play again?  \0";
+char UART_WIN_GAME[] = "You won! +10 points. Total score:  \0";
+char UART_SELECT_DIFFICULTY_GAME[] = "Select difficulty from 1 to 5, send <num>  \0";
+char GAME_START_CHAR = 'S';
 
 // Game logic variables
 uint64_t rand_seed = 0;
 uint8_t random_values[10];
 uint8_t game_start_flag = 0;
 
+void getRandNumbers(uint8_t array, uint8_t size){
+	for (uint8_t i = 0; i < size; i++) {
+		uint8_t x;
+		while (x > MAX_GAME_NUMBER) {
+			x = rand();
+		}
+		array[i] = x;
+	}
+}
+
 void UARTsendByte(char data) {
     while (!(UCSR1A & 1 << UDRE1));
     UDR1 = data;
 }
 
-void UARTsendString(char * str) {
-    char * ptr = str;
-    while ( * ptr != 0) {
-        UARTsendByte( * ptr);
+void UARTsendString(char *str) {
+    char *ptr = str;
+    while (*ptr != 0) {
+        UARTsendByte(*ptr);
         ptr++;
     }
 }
@@ -97,9 +108,10 @@ ISR(TIMER0_OVF_vect) {
         PORTD = 0;
         shiftByteOut(numbers_7SEG[number_left_7SEG]);
     }
-
-    rand_seed++;
-    srand(rand_seed);
+	
+	// Random seed update
+	rand_seed++;
+	srand(rand_seed);
 }
 
 ISR(TIMER1_COMPA_vect) {
@@ -107,13 +119,6 @@ ISR(TIMER1_COMPA_vect) {
     7SEG slow timer. Counts numbers what to show. 
     TODO use this timer for game logic to show numbers.
     */
-    number_right_7SEG++;
-    if (number_right_7SEG == 10) {
-        number_right_7SEG = 0;
-        number_left_7SEG++;
-    }
-    if (number_left_7SEG == 10)
-        number_left_7SEG = 0;
 }
 
 ISR(TIMER3_COMPA_vect) {
@@ -188,6 +193,7 @@ ISR(TIMER3_COMPA_vect) {
     }
 }
 
+
 int main(void) {
     // Timer init (PWM, phase and frequency Correct), no prescaler
     TCCR3A = 1 << WGM30 | 0 << WGM31;
@@ -198,13 +204,11 @@ int main(void) {
     // IR receiver
     DDRE &= ~(1 << PE5);
 
-    /*
-    // slow timer init
+    // Slow timer init. Game logic timer
     TCCR1A = (1 << WGM10) | (0 << WGM11);
     TCCR1B = (0 << WGM12) | (1 << WGM13) | (1 << CS12) | (0 << CS11) | (1 << CS10);
     TIMSK1 = 1 << OCIE1A; // interrupt en
     OCR1A = 128;		  // blink delay
-    */
 
     // fast timer
     TCCR0A = 0;
@@ -219,37 +223,36 @@ int main(void) {
     DDRD = 1 << PD4;
 
     // UART init
-    UCSR1A = 1 << U2X1; // double speed
-    UCSR1B = 1 << TXEN1;
+    UCSR1B = 1 << TXEN1 | 1 << RXEN1;
     UCSR1C = 1 << UCSZ11 | 1 << UCSZ10; // char size = 8 bit
-    UBRR1 = 12; // 19200 baud rate, 0.2% error
+    UBRR1 = 12; // 9600 baud rate
 
     // LED. Blinks when IR received
     DDRA = 0xFF;
 
-    sei();
+    //sei();
+	number_left_7SEG = 0;
+	number_right_7SEG = 0;
     while (1) {
         // Game logic
-        number_left_7SEG = 0;
-        number_right_7SEG = 0;
-	
-	UARTsendString(UART_START_GAME); //TODO init and configure UART RX
-	/*
-	while (UART_RX_DATA blah blah blah)
-	if (rx_data == GAME_START_CHAR) // 'S' char
-		{
-			UARTsendString(UART_SELECT_DIFFICULTY_GAME);
-			{
-				-----------------START GAME HERE-----------------
-			}
+		UARTsendString(UART_START_GAME);           // Game start message
+		while ((UCSR1A & (1 << RXC1)) == 0);       // Wait for user to start
+		uint8_t user_input = UDR1;
+		if (user_input == 'S') {
+			game_start_flag = 1;
 		}
-	*/
+		if (game_start_flag) {
+			getRandNumbers(random_values);
+		}
+		// TODO SHOW NUMBER ON LED
+		while ((UCSR1A & (1 << RXC1)) == 0); // Wait for user
 	
-	// Random value generator example. Random seed generated in TIMER0_OVF_vect
+		/*// Random value generator example. Random seed generated in TIMER0_OVF_vect
         uint8_t x = rand();
         PORTA = x;
         rand_seed++;
         UARTsendByte(x);
+		*/
 
     }
 }
