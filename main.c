@@ -1,7 +1,5 @@
 #include "avr/io.h"
-
 #include "avr/interrupt.h"
-
 #include "stdlib.h"
 
 #define BUFFER_SIZE 128
