@@ -243,9 +243,22 @@ int main(void) {
 		}
 		if (game_start_flag) {
 			getRandNumbers(random_values);
+			// pseudokood
+			for number in random_values:
+				show_on_7SEG(number)
+				delay(timer1 used for delay, OCR1A m22rab delayt)
+			
+			for value in random_values:
+				input = read_uart
+				if input == value:
+					score++ -> EPROM
+				else:
+					game_over
+					UARTsendString(UART_LOSE_GAME);
+			UARTsendString(UART_WIN_GAME);
 		}
-		// TODO SHOW NUMBER ON LED
-		while ((UCSR1A & (1 << RXC1)) == 0); // Wait for user
+		EPROM_Show_score
+		
 	
 		/*// Random value generator example. Random seed generated in TIMER0_OVF_vect
         uint8_t x = rand();
