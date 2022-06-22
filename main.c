@@ -4,25 +4,8 @@
 
 #include "stdlib.h"
 
-<<<<<<< HEAD
+#define GAME_NUMBERS_SIZE 10
 
-=======
-#define BUFFER_SIZE 128
-#define DIFF_BETWEEN_PULSES 3
-#define BYTES_IN_MSG 5
-#define MAX_GAME_NUMBER 99
-
-// IR receiver variables
-uint8_t read_data_flag = 0;
-uint16_t read_data_counter = 0;
-uint8_t buffer1[BUFFER_SIZE];
-uint8_t buffer2[BUFFER_SIZE];
-uint8_t buffer3[BUFFER_SIZE];
-uint8_t buffer4[BUFFER_SIZE];
-uint8_t ir_data;
-char serial_debug_data;
-
->>>>>>> 24d07badc544283b71b8f363f23f3c651262816c
 // 7SEG variables
 uint8_t counter_flip_7SEG = 0; // counts, which 7SEG left to show. Left or right.
 uint8_t number_right_7SEG = 0;
@@ -49,8 +32,26 @@ char GAME_START_CHAR = 'S';
 
 // Game logic variables
 uint64_t rand_seed = 0;
-uint8_t random_values[10];
+uint8_t random_values[GAME_NUMBERS_SIZE];
 uint8_t game_start_flag = 0;
+uint8_t user_input;
+uint16_t timer_delay;
+
+void delay_1ms(){
+	TIFR0 = 1<<OCF0B;
+	TCNT0 = 0;
+	OCR0B = 1;
+	
+	while (!(TIFR0 & (1 << OCF0B)));
+	TIFR0 = (1 << OCF0B);
+	
+}
+
+void delay_ms(uint16_t time){
+    for (uint16_t i = 0; i < time; i++) {
+        delay_1ms();
+    }
+}
 
 void getRandNumbers(uint8_t array, uint8_t size) {
     for (uint8_t i = 0; i < size; i++) {
@@ -111,19 +112,10 @@ ISR(TIMER0_OVF_vect) {
     srand(rand_seed);
 }
 
-ISR(TIMER1_COMPA_vect) {
-    /*
-    7SEG slow timer. Counts numbers what to show. 
-    TODO use this timer for game logic to show numbers.
-    */
-}
-
 int main(void) {
-    // Slow timer init. Game logic timer
-    TCCR1A = (1 << WGM10) | (0 << WGM11);
-    TCCR1B = (0 << WGM12) | (1 << WGM13) | (1 << CS12) | (0 << CS11) | (1 << CS10);
-    TIMSK1 = 1 << OCIE1A; // interrupt en
-    OCR1A = 128; // blink delay
+    // Slow timer init. Game logic timer. (delay func)
+    TCCR1A = 0;
+	TCCR1B = (1<<CS12) | (0<<CS11) | (1<<CS10);
 
     // fast timer to show 7SEG numbers
     TCCR0A = 0;
@@ -144,33 +136,59 @@ int main(void) {
 
     DDRA = 0xFF;
 
-    //sei();
     number_left_7SEG = 0;
     number_right_7SEG = 0;
+
+    sei();
     while (1) {
         // Game logic
         UARTsendString(UART_START_GAME); // Game start message
         while ((UCSR1A & (1 << RXC1)) == 0); // Wait for user to start
-        uint8_t user_input = UDR1;
+        user_input = UDR1;
         if (user_input == 'S') {
             game_start_flag = 1;
         }
         if (game_start_flag) {
-            getRandNumbers(random_values);
-            // pseudokood
-            for number in random_values:
-                show_on_7SEG(number)
-            delay(timer1 used
-                for delay, OCR1A m22rab delayt)
+            // Select difficulty == speed of the timer
+            UARTsendString(UART_SELECT_DIFFICULTY_GAME);
+            while ((UCSR1A & (1 << RXC1)) == 0);
+            user_input = UDR1;
+            switch (user_input) {
+                case '1':
+                    timer_delay = 500;
+                    break;
+                case '2':
+                    timer_delay = 350;
+                    break;
+                case '3':
+                    timer_delay = 250;
+                    break;
+                case '4':
+                    timer_delay = 100;
+                    break;
+                case '5':
+                    timer_delay = 50;
+                    break;
+                default:
+                    timer_delay = 500;
+            }
 
-            for value in random_values:
-                input = read_uart
+            // Show random numbers on the 7 seg
+            getRandNumbers(random_values, GAME_NUMBERS_SIZE);
+            for (uint8_t i = 0; i < GAME_NUMBERS_SIZE; i++) {
+                number_left_7SEG = random_values[i] / 10;
+                number_right_7SEG = random_values[i] - (random_values[i] / 10) * 10;
+                delay_ms(timer_delay);
+            }
+
+            // Check is user sends numbers in correct order
             if input == value:
                 score++ -> EPROM
+                UARTsendString(UART_WIN_GAME);
             else :
                 game_over
             UARTsendString(UART_LOSE_GAME);
-            UARTsendString(UART_WIN_GAME);
+            
         }
         EPROM_Show_score
 
