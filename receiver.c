@@ -8,7 +8,6 @@
 #define BUFFER_SIZE 128
 #define DIFF_BETWEEN_PULSES 3
 #define BYTES_IN_MSG 5
-#define MAX_GAME_NUMBER 99
 
 // IR receiver variables
 uint8_t read_data_flag = 0;
