@@ -5,6 +5,7 @@
 #include "stdlib.h"
 
 #define GAME_NUMBERS_SIZE 10
+#define MAX_GAME_NUMBER 99
 
 // 7SEG variables
 uint8_t counter_flip_7SEG = 0; // counts, which 7SEG left to show. Left or right.
@@ -36,6 +37,7 @@ uint8_t random_values[GAME_NUMBERS_SIZE];
 uint8_t game_start_flag = 0;
 uint8_t user_input;
 uint16_t timer_delay;
+uint8_t game_win_flag = 1;
 
 void delay_1ms(){
 	TIFR0 = 1<<OCF0B;
@@ -92,6 +94,14 @@ void shiftByteOut(uint8_t number) {
     }
     PORTB = 1 << PB7;
     PORTB = 0;
+}
+
+uint8_t str_to_number(char number) {
+    /* 
+    Works only with ASCII numbers represented as char
+    */
+    uint8_t ascii_zero = 48;
+    return number - ascii_zero;
 }
 
 ISR(TIMER0_OVF_vect) {
@@ -180,17 +190,23 @@ int main(void) {
                 number_right_7SEG = random_values[i] - (random_values[i] / 10) * 10;
                 delay_ms(timer_delay);
             }
+            // Check if user inputs correct numbers
+            for (uint8_t i = 0; i < GAME_NUMBERS_SIZE; i++) {
+                while ((UCSR1A & (1 << RXC1)) == 0);
+                user_input = UDR1;
+                if (str_to_number(user_input) != random_values[i]) {
+                    game_win_flag = 0;
+                }
+            }
 
-            // Check is user sends numbers in correct order
-            if input == value:
-                score++ -> EPROM
-                UARTsendString(UART_WIN_GAME);
-            else :
-                game_over
-            UARTsendString(UART_LOSE_GAME);
-            
+            if (game_win_flag) {
+                UARTsendString(UART_WIN_GAME)
+            } else {
+                UARTsendString(UART_LOSE_GAME)
+            }    
+            game_win_flag = 1;
         }
-        EPROM_Show_score
+        //EPROM_Show_score
 
         /*// Random value generator example. Random seed generated in TIMER0_OVF_vect
         uint8_t x = rand();
